@@ -1,0 +1,17 @@
+{
+  "name": "@athena/ui-kit",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.ts",
+  "types": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./styles": "./styles/index.css",
+    "./components/*": "./components/*.tsx",
+    "./hooks/*": "./hooks/*.ts"
+  },
+  "peerDependencies": {
+    "react": "^18.0.0",
+    "react-dom": "^18.0.0"
+  }
+}

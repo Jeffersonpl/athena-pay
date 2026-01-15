@@ -1,0 +1,80 @@
+# ============================================
+# Aurora Pay - Production Base Image
+# Multi-stage build with security hardening
+# ============================================
+
+FROM python:3.11-slim-bookworm AS base
+
+# Security: Run as non-root user
+RUN groupadd -r aurora && useradd -r -g aurora aurora
+
+# Security: Install only essential packages
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Security: Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Create app directory with correct permissions
+WORKDIR /app
+RUN chown -R aurora:aurora /app
+
+# ============================================
+# Builder Stage - Install dependencies
+# ============================================
+FROM base AS builder
+
+# Install build dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install Python dependencies
+COPY requirements.txt .
+RUN pip install --upgrade pip setuptools wheel \
+    && pip install -r requirements.txt
+
+# ============================================
+# Production Stage - Minimal runtime image
+# ============================================
+FROM base AS production
+
+# Copy virtual environment from builder
+COPY --from=builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Security hardening
+RUN chmod -R 755 /opt/venv \
+    && find /opt/venv -type f -name "*.pyc" -delete \
+    && find /opt/venv -type d -name "__pycache__" -delete
+
+# Copy application code
+COPY --chown=aurora:aurora . /app
+
+# Switch to non-root user
+USER aurora
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8080/health/live || exit 1
+
+# Default command
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]

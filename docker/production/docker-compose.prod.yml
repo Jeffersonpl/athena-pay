@@ -1,0 +1,586 @@
+# ============================================
+# Athena Pay - Production Docker Compose
+# Full microservices stack with security hardening
+# ============================================
+
+version: "3.9"
+
+x-common-env: &common-env
+  ENVIRONMENT: production
+  LOG_LEVEL: info
+  LOG_FORMAT: json
+  TZ: America/Sao_Paulo
+
+x-healthcheck: &healthcheck
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 30s
+
+x-deploy: &deploy-defaults
+  resources:
+    limits:
+      cpus: "1"
+      memory: 512M
+    reservations:
+      cpus: "0.25"
+      memory: 128M
+  restart_policy:
+    condition: on-failure
+    delay: 5s
+    max_attempts: 3
+    window: 120s
+
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  # ============================================
+  # Infrastructure Services
+  # ============================================
+
+  traefik:
+    image: traefik:v3.0
+    container_name: athena-traefik
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=false"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--providers.docker.network=athena-network"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+      - "--certificatesresolvers.letsencrypt.acme.tlschallenge=true"
+      - "--certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.letsencrypt.acme.storage=/letsencrypt/acme.json"
+      - "--metrics.prometheus=true"
+      - "--accesslog=true"
+      - "--accesslog.format=json"
+      - "--log.level=INFO"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - traefik-certs:/letsencrypt
+    networks:
+      - athena-network
+    deploy:
+      <<: *deploy-defaults
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.${DOMAIN}`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_AUTH}"
+
+  # ============================================
+  # Database
+  # ============================================
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: athena-postgres
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d:ro
+    networks:
+      - athena-network
+    deploy:
+      <<: *deploy-defaults
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2G
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      <<: *healthcheck
+    logging: *logging
+    command:
+      - "postgres"
+      - "-c"
+      - "max_connections=200"
+      - "-c"
+      - "shared_buffers=512MB"
+      - "-c"
+      - "effective_cache_size=1536MB"
+      - "-c"
+      - "maintenance_work_mem=128MB"
+      - "-c"
+      - "checkpoint_completion_target=0.9"
+      - "-c"
+      - "wal_buffers=16MB"
+      - "-c"
+      - "default_statistics_target=100"
+      - "-c"
+      - "random_page_cost=1.1"
+      - "-c"
+      - "effective_io_concurrency=200"
+      - "-c"
+      - "log_statement=mod"
+      - "-c"
+      - "log_duration=on"
+      - "-c"
+      - "log_min_duration_statement=1000"
+
+  redis:
+    image: redis:7-alpine
+    container_name: athena-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
+    volumes:
+      - redis-data:/data
+    networks:
+      - athena-network
+    deploy:
+      <<: *deploy-defaults
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      <<: *healthcheck
+    logging: *logging
+
+  # ============================================
+  # Observability
+  # ============================================
+
+  prometheus:
+    image: prom/prometheus:v2.47.0
+    container_name: athena-prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=15d"
+      - "--web.enable-lifecycle"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - athena-network
+    deploy:
+      <<: *deploy-defaults
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.prometheus.rule=Host(`prometheus.${DOMAIN}`)"
+      - "traefik.http.routers.prometheus.entrypoints=websecure"
+      - "traefik.http.routers.prometheus.tls.certresolver=letsencrypt"
+
+  grafana:
+    image: grafana/grafana:10.2.0
+    container_name: athena-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_INSTALL_PLUGINS: grafana-clock-panel,grafana-piechart-panel
+      GF_SERVER_ROOT_URL: https://grafana.${DOMAIN}
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    networks:
+      - athena-network
+    deploy:
+      <<: *deploy-defaults
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.${DOMAIN}`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls.certresolver=letsencrypt"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.51
+    container_name: athena-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+      SPAN_STORAGE_TYPE: badger
+      BADGER_EPHEMERAL: "false"
+      BADGER_DIRECTORY_VALUE: /badger/data
+      BADGER_DIRECTORY_KEY: /badger/key
+    volumes:
+      - jaeger-data:/badger
+    ports:
+      - "6831:6831/udp"
+      - "4317:4317"
+    networks:
+      - athena-network
+    deploy:
+      <<: *deploy-defaults
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jaeger.rule=Host(`jaeger.${DOMAIN}`)"
+      - "traefik.http.routers.jaeger.entrypoints=websecure"
+      - "traefik.http.routers.jaeger.tls.certresolver=letsencrypt"
+      - "traefik.http.services.jaeger.loadbalancer.server.port=16686"
+
+  # ============================================
+  # Core Services
+  # ============================================
+
+  accounts-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: accounts-service
+    container_name: athena-accounts
+    environment:
+      <<: *common-env
+      SERVICE_NAME: accounts-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_accounts
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+      replicas: 2
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.accounts.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/accounts`)"
+      - "traefik.http.routers.accounts.entrypoints=websecure"
+      - "traefik.http.routers.accounts.tls.certresolver=letsencrypt"
+      - "traefik.http.services.accounts.loadbalancer.server.port=8080"
+      - "traefik.http.routers.accounts.middlewares=ratelimit"
+      - "traefik.http.middlewares.ratelimit.ratelimit.average=100"
+      - "traefik.http.middlewares.ratelimit.ratelimit.burst=50"
+
+  pix-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: pix-service
+    container_name: athena-pix
+    environment:
+      <<: *common-env
+      SERVICE_NAME: pix-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_pix
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/1
+      ACCOUNTS_SERVICE_URL: http://accounts-service:8080
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      accounts-service:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+      replicas: 2
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pix.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/pix`)"
+      - "traefik.http.routers.pix.entrypoints=websecure"
+      - "traefik.http.routers.pix.tls.certresolver=letsencrypt"
+      - "traefik.http.services.pix.loadbalancer.server.port=8080"
+
+  card-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: card-service
+    container_name: athena-card
+    environment:
+      <<: *common-env
+      SERVICE_NAME: card-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_cards
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/2
+      ACCOUNTS_SERVICE_URL: http://accounts-service:8080
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.card.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/cards`)"
+      - "traefik.http.routers.card.entrypoints=websecure"
+      - "traefik.http.routers.card.tls.certresolver=letsencrypt"
+      - "traefik.http.services.card.loadbalancer.server.port=8080"
+
+  loans-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: loans-service
+    container_name: athena-loans
+    environment:
+      <<: *common-env
+      SERVICE_NAME: loans-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_loans
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/3
+      ACCOUNTS_SERVICE_URL: http://accounts-service:8080
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.loans.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/loans`)"
+      - "traefik.http.routers.loans.entrypoints=websecure"
+      - "traefik.http.routers.loans.tls.certresolver=letsencrypt"
+      - "traefik.http.services.loans.loadbalancer.server.port=8080"
+
+  kyc-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: kyc-service
+    container_name: athena-kyc
+    environment:
+      <<: *common-env
+      SERVICE_NAME: kyc-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_kyc
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/4
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.kyc.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/kyc`)"
+      - "traefik.http.routers.kyc.entrypoints=websecure"
+      - "traefik.http.routers.kyc.tls.certresolver=letsencrypt"
+      - "traefik.http.services.kyc.loadbalancer.server.port=8080"
+
+  compliance-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: compliance-service
+    container_name: athena-compliance
+    environment:
+      <<: *common-env
+      SERVICE_NAME: compliance-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_compliance
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/5
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.compliance.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/compliance`)"
+      - "traefik.http.routers.compliance.entrypoints=websecure"
+      - "traefik.http.routers.compliance.tls.certresolver=letsencrypt"
+      - "traefik.http.services.compliance.loadbalancer.server.port=8080"
+
+  wire-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: wire-service
+    container_name: athena-wire
+    environment:
+      <<: *common-env
+      SERVICE_NAME: wire-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_wire
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/6
+      ACCOUNTS_SERVICE_URL: http://accounts-service:8080
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wire.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/wire`)"
+      - "traefik.http.routers.wire.entrypoints=websecure"
+      - "traefik.http.routers.wire.tls.certresolver=letsencrypt"
+      - "traefik.http.services.wire.loadbalancer.server.port=8080"
+
+  boleto-service:
+    build:
+      context: ../..
+      dockerfile: docker/production/Dockerfile.service
+      args:
+        SERVICE_NAME: boleto-service
+    container_name: athena-boleto
+    environment:
+      <<: *common-env
+      SERVICE_NAME: boleto-service
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@postgres:5432/athena_boleto
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/7
+      ACCOUNTS_SERVICE_URL: http://accounts-service:8080
+      JWT_SECRET: ${JWT_SECRET}
+      JAEGER_HOST: jaeger
+    networks:
+      - athena-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    deploy:
+      <<: *deploy-defaults
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8080/health/live"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.boleto.rule=Host(`api.${DOMAIN}`) && PathPrefix(`/boleto`)"
+      - "traefik.http.routers.boleto.entrypoints=websecure"
+      - "traefik.http.routers.boleto.tls.certresolver=letsencrypt"
+      - "traefik.http.services.boleto.loadbalancer.server.port=8080"
+
+  # ============================================
+  # Frontend
+  # ============================================
+
+  web-client:
+    build:
+      context: ../../apps/web-client
+      dockerfile: Dockerfile.prod
+    container_name: athena-web
+    environment:
+      VITE_API_URL: https://api.${DOMAIN}
+    networks:
+      - athena-network
+    deploy:
+      <<: *deploy-defaults
+      resources:
+        limits:
+          cpus: "0.25"
+          memory: 128M
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:80/health"]
+      <<: *healthcheck
+    logging: *logging
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.web.rule=Host(`${DOMAIN}`)"
+      - "traefik.http.routers.web.entrypoints=websecure"
+      - "traefik.http.routers.web.tls.certresolver=letsencrypt"
+      - "traefik.http.services.web.loadbalancer.server.port=80"
+
+# ============================================
+# Networks
+# ============================================
+
+networks:
+  athena-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+# ============================================
+# Volumes
+# ============================================
+
+volumes:
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  jaeger-data:
+    driver: local
+  traefik-certs:
+    driver: local

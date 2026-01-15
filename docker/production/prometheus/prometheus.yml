@@ -1,0 +1,101 @@
+# ============================================
+# Athena Pay - Prometheus Configuration
+# ============================================
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'athena-pay'
+    environment: 'production'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+          # - alertmanager:9093
+
+# Rule files
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Traefik metrics
+  - job_name: 'traefik'
+    static_configs:
+      - targets: ['traefik:8080']
+
+  # Core Services
+  - job_name: 'accounts-service'
+    static_configs:
+      - targets: ['accounts-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'pix-service'
+    static_configs:
+      - targets: ['pix-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'card-service'
+    static_configs:
+      - targets: ['card-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'loans-service'
+    static_configs:
+      - targets: ['loans-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'kyc-service'
+    static_configs:
+      - targets: ['kyc-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'compliance-service'
+    static_configs:
+      - targets: ['compliance-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'wire-service'
+    static_configs:
+      - targets: ['wire-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  - job_name: 'boleto-service'
+    static_configs:
+      - targets: ['boleto-service:8080']
+    metrics_path: /metrics
+    scrape_interval: 10s
+
+  # PostgreSQL metrics (via postgres_exporter if deployed)
+  # - job_name: 'postgres'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+
+  # Redis metrics (via redis_exporter if deployed)
+  # - job_name: 'redis'
+  #   static_configs:
+  #     - targets: ['redis-exporter:9121']
+
+  # Docker host metrics
+  - job_name: 'docker'
+    static_configs:
+      - targets: ['host.docker.internal:9323']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: instance
+        replacement: 'docker-host'

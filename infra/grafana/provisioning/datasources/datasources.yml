@@ -1,0 +1,25 @@
+# Athena Pay - Grafana Datasource Provisioning
+apiVersion: 1
+
+datasources:
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://prometheus:9090
+    isDefault: true
+    editable: true
+    jsonData:
+      timeInterval: "15s"
+
+  - name: PostgreSQL
+    type: postgres
+    url: postgres:5432
+    database: athena
+    user: athena
+    secureJsonData:
+      password: athena_secret_2024
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 10
+      maxIdleConns: 5
+      connMaxLifetime: 14400

@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: admin-api }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: admin-api } }
+  template:
+    metadata: { labels: { app: admin-api } }
+    spec:
+      containers:
+        - name: admin-api
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

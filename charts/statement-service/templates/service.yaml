@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Service
+metadata: { name: statement-service }
+spec:
+  selector: { app: statement-service }
+  ports: [ { port: { { .Values.service.port } }, targetPort: { { .Values.service.targetPort } } } ]

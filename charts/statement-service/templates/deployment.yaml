@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: statement-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: statement-service } }
+  template:
+    metadata: { labels: { app: statement-service } }
+    spec:
+      containers:
+        - name: statement-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

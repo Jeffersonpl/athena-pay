@@ -1,0 +1,104 @@
+{
+  "realm": "athena",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "web",
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:5174/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "admin",
+      "publicClient": true,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "redirectUris": [
+        "http://localhost:5173/*"
+      ],
+      "webOrigins": [
+        "*"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "athena-api",
+      "publicClient": false,
+      "protocol": "openid-connect",
+      "standardFlowEnabled": true,
+      "secret": "secret-athena-api"
+    }
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "cto"
+      },
+      {
+        "name": "ceo"
+      },
+      {
+        "name": "manager"
+      },
+      {
+        "name": "agent"
+      },
+      {
+        "name": "finance"
+      },
+      {
+        "name": "support"
+      },
+      {
+        "name": "admin"
+      },
+      {
+        "name": "user"
+      }
+    ]
+  },
+  "users": [
+    {
+      "username": "admin1",
+      "enabled": true,
+      "email": "admin1@athena.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Passw0rd!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "cto",
+        "user"
+      ]
+    },
+    {
+      "username": "user1",
+      "enabled": true,
+      "email": "user1@athena.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Passw0rd!",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "user"
+      ]
+    }
+  ]
+}

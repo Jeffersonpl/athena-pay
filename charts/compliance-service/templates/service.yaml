@@ -1,0 +1,6 @@
+apiVersion: v1
+kind: Service
+metadata: { name: compliance-service }
+spec:
+  selector: { app: compliance-service }
+  ports: [ { port: { { .Values.service.port } }, targetPort: { { .Values.service.targetPort } } } ]

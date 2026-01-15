@@ -1,0 +1,222 @@
+# LGPD Service - Kubernetes Manifests
+# Compliance with Lei Geral de Proteção de Dados (Lei 13.709/2018)
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: athena-pay
+  labels:
+    app.kubernetes.io/name: athena-pay
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lgpd-service-config
+  namespace: athena-pay
+data:
+  ENV: "prod"
+  DPO_NAME: "Data Protection Officer"
+  DPO_EMAIL: "dpo@athenapay.com.br"
+  LOG_LEVEL: "INFO"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: lgpd-service-secrets
+  namespace: athena-pay
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://athena:CHANGE_ME@postgres-primary:5432/athena"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lgpd-service
+  namespace: athena-pay
+  labels:
+    app: lgpd-service
+    version: v1
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: lgpd-service
+  template:
+    metadata:
+      labels:
+        app: lgpd-service
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/metrics"
+    spec:
+      serviceAccountName: lgpd-service
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: lgpd-service
+          image: athenapay/lgpd-service:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8080
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: lgpd-service-config
+            - secretRef:
+                name: lgpd-service-secrets
+          env:
+            - name: ACCOUNTS_SERVICE_URL
+              value: "http://accounts-service:8080"
+            - name: AUDIT_SERVICE_URL
+              value: "http://audit-service:8080"
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "200m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app: lgpd-service
+                topologyKey: kubernetes.io/hostname
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lgpd-service
+  namespace: athena-pay
+  labels:
+    app: lgpd-service
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+      name: http
+  selector:
+    app: lgpd-service
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: lgpd-service
+  namespace: athena-pay
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: lgpd-service-hpa
+  namespace: athena-pay
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: lgpd-service
+  minReplicas: 2
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: lgpd-service-pdb
+  namespace: athena-pay
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: lgpd-service
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lgpd-service-network-policy
+  namespace: athena-pay
+spec:
+  podSelector:
+    matchLabels:
+      app: lgpd-service
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app: api-gateway
+      ports:
+        - protocol: TCP
+          port: 8080
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app: postgres-primary
+      ports:
+        - protocol: TCP
+          port: 5432
+    - to:
+        - podSelector:
+            matchLabels:
+              app: accounts-service
+      ports:
+        - protocol: TCP
+          port: 8080
+    - to:
+        - podSelector:
+            matchLabels:
+              app: audit-service
+      ports:
+        - protocol: TCP
+          port: 8080

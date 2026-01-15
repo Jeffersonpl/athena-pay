@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: whatsapp-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: whatsapp-service } }
+  template:
+    metadata: { labels: { app: whatsapp-service } }
+    spec:
+      containers:
+        - name: whatsapp-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

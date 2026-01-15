@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: affiliates-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: affiliates-service } }
+  template:
+    metadata: { labels: { app: affiliates-service } }
+    spec:
+      containers:
+        - name: affiliates-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

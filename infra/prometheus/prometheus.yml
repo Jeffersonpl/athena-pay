@@ -1,0 +1,149 @@
+# Athena Pay - Prometheus Configuration
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'athena-pay'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+# Rules files
+rule_files: []
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Core Services
+  - job_name: 'accounts-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['accounts-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'accounts'
+
+  - job_name: 'audit-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['audit-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'audit'
+
+  - job_name: 'compliance-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['compliance-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'compliance'
+
+  - job_name: 'kyc-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['kyc-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'kyc'
+
+  # Payment Services
+  - job_name: 'pix-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['pix-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'pix'
+
+  - job_name: 'card-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['card-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'cards'
+
+  - job_name: 'boleto-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['boleto-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'boleto'
+
+  - job_name: 'wire-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['wire-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'wire'
+
+  # Credit Services
+  - job_name: 'loans-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['loans-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'loans'
+
+  # AI Services
+  - job_name: 'ai-service'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['ai-service:8080']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'ai'
+
+  # Infrastructure
+  - job_name: 'nginx'
+    static_configs:
+      - targets: ['nginx:80']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'gateway'
+
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'postgres'
+
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'redis'
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15672']
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: service
+        replacement: 'rabbitmq'

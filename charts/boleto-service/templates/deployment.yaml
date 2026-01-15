@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: boleto-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: boleto-service } }
+  template:
+    metadata: { labels: { app: boleto-service } }
+    spec:
+      containers:
+        - name: boleto-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

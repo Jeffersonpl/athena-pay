@@ -1,0 +1,5 @@
+version: "3.9"
+services:
+  pix-service:
+    volumes:
+      - ./services/pix-service/app/main.py:/app/main.py:ro

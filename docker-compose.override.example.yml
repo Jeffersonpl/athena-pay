@@ -1,0 +1,10 @@
+version: "3.9"
+services:
+  web-client:
+    environment:
+      - VITE_KEYCLOAK_URL=http://localhost:8088/realms/athena
+      - VITE_KEYCLOAK_REALM=athena
+      - VITE_KEYCLOAK_CLIENT_ID=web-client
+      - VITE_API_BASE=http://localhost:8080
+      - VITE_CARD_BASE=http://localhost:9084
+      - VITE_CONFIG_BASE=http://localhost:9085

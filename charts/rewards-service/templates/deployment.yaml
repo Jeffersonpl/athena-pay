@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: rewards-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: rewards-service } }
+  template:
+    metadata: { labels: { app: rewards-service } }
+    spec:
+      containers:
+        - name: rewards-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

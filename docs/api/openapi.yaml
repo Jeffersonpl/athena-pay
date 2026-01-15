@@ -1,0 +1,2082 @@
+openapi: 3.1.0
+info:
+  title: Athena Pay API
+  description: |
+    # Athena Pay - API Documentation
+
+    API RESTful da plataforma financeira digital Athena Pay.
+
+    ## Autenticacao
+
+    Todas as requisicoes requerem autenticacao via Bearer Token (JWT) obtido atraves do Keycloak.
+
+    ```
+    Authorization: Bearer <access_token>
+    ```
+
+    ## Rate Limiting
+
+    | Endpoint | Limite |
+    |----------|--------|
+    | /auth/* | 10 req/min |
+    | /pix/* | 100 req/min |
+    | /accounts/* | 200 req/min |
+    | Outros | 500 req/min |
+
+    ## Ambientes
+
+    | Ambiente | URL |
+    |----------|-----|
+    | Producao | https://api.athenapay.com.br |
+    | Sandbox | https://sandbox.athenapay.com.br |
+    | Desenvolvimento | http://localhost:8000 |
+
+  version: 2.0.0
+  contact:
+    name: Athena Pay Support
+    email: api@athenapay.com.br
+    url: https://developers.athenapay.com.br
+  license:
+    name: Proprietary
+    url: https://athenapay.com.br/terms
+
+servers:
+  - url: https://api.athenapay.com.br/v1
+    description: Producao
+  - url: https://sandbox.athenapay.com.br/v1
+    description: Sandbox
+  - url: http://localhost:8000/api
+    description: Desenvolvimento
+
+tags:
+  - name: Auth
+    description: Autenticacao e autorizacao
+  - name: Accounts
+    description: Gestao de contas e saldos
+  - name: PIX
+    description: Transferencias e chaves PIX
+  - name: Cards
+    description: Cartoes de credito e debito
+  - name: Payments
+    description: Pagamentos e boletos
+  - name: Investments
+    description: Investimentos e aplicacoes
+  - name: Loans
+    description: Emprestimos e credito
+  - name: Crypto
+    description: Criptomoedas
+  - name: Insurance
+    description: Seguros
+  - name: Rewards
+    description: Programa de pontos
+  - name: LGPD
+    description: Privacidade e dados pessoais
+
+paths:
+  # ==================== AUTH ====================
+  /auth/token:
+    post:
+      tags: [Auth]
+      summary: Obter token de acesso
+      description: Autentica o usuario e retorna tokens JWT
+      operationId: getToken
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [grant_type, username, password]
+              properties:
+                grant_type:
+                  type: string
+                  enum: [password, refresh_token]
+                username:
+                  type: string
+                  example: "usuario@email.com"
+                password:
+                  type: string
+                  format: password
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token obtido com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Encerrar sessao
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Sessao encerrada
+
+  # ==================== ACCOUNTS ====================
+  /accounts:
+    get:
+      tags: [Accounts]
+      summary: Listar contas do usuario
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de contas
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Account'
+
+  /accounts/{accountId}:
+    get:
+      tags: [Accounts]
+      summary: Detalhes da conta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Detalhes da conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Account'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /accounts/{accountId}/balance:
+    get:
+      tags: [Accounts]
+      summary: Consultar saldo
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+      responses:
+        '200':
+          description: Saldo da conta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Balance'
+
+  /accounts/{accountId}/statement:
+    get:
+      tags: [Accounts]
+      summary: Extrato da conta
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AccountId'
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Extrato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatementResponse'
+
+  # ==================== PIX ====================
+  /pix/keys:
+    get:
+      tags: [PIX]
+      summary: Listar chaves PIX
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de chaves
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PIXKey'
+
+    post:
+      tags: [PIX]
+      summary: Cadastrar chave PIX
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PIXKeyRequest'
+      responses:
+        '201':
+          description: Chave cadastrada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PIXKey'
+        '409':
+          description: Chave ja cadastrada
+
+  /pix/keys/{keyId}:
+    delete:
+      tags: [PIX]
+      summary: Excluir chave PIX
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: keyId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Chave excluida
+
+  /pix/transfer:
+    post:
+      tags: [PIX]
+      summary: Realizar transferencia PIX
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PIXTransferRequest'
+      responses:
+        '202':
+          description: Transferencia aceita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PIXTransferResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          description: Saldo insuficiente
+
+  /pix/transfer/{transactionId}:
+    get:
+      tags: [PIX]
+      summary: Consultar status da transferencia
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Status da transferencia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PIXTransaction'
+
+  /pix/qrcode:
+    post:
+      tags: [PIX]
+      summary: Gerar QR Code PIX
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/QRCodeRequest'
+      responses:
+        '201':
+          description: QR Code gerado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QRCodeResponse'
+
+  /pix/qrcode/decode:
+    post:
+      tags: [PIX]
+      summary: Decodificar QR Code PIX
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payload]
+              properties:
+                payload:
+                  type: string
+                  description: Conteudo do QR Code
+      responses:
+        '200':
+          description: Dados decodificados
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QRCodeDecoded'
+
+  # ==================== CARDS ====================
+  /cards:
+    get:
+      tags: [Cards]
+      summary: Listar cartoes
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de cartoes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Card'
+
+    post:
+      tags: [Cards]
+      summary: Solicitar novo cartao
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CardRequest'
+      responses:
+        '201':
+          description: Cartao solicitado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+
+  /cards/{cardId}:
+    get:
+      tags: [Cards]
+      summary: Detalhes do cartao
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Detalhes do cartao
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Card'
+
+  /cards/{cardId}/block:
+    post:
+      tags: [Cards]
+      summary: Bloquear cartao
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  enum: [lost, stolen, temporary, fraud]
+      responses:
+        '200':
+          description: Cartao bloqueado
+
+  /cards/{cardId}/unblock:
+    post:
+      tags: [Cards]
+      summary: Desbloquear cartao
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+      responses:
+        '200':
+          description: Cartao desbloqueado
+
+  /cards/virtual:
+    post:
+      tags: [Cards]
+      summary: Criar cartao virtual
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VirtualCardRequest'
+      responses:
+        '201':
+          description: Cartao virtual criado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VirtualCard'
+
+  /cards/{cardId}/transactions:
+    get:
+      tags: [Cards]
+      summary: Transacoes do cartao
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CardId'
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Lista de transacoes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CardTransactionsResponse'
+
+  # ==================== PAYMENTS ====================
+  /payments/boleto:
+    post:
+      tags: [Payments]
+      summary: Pagar boleto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BoletoPaymentRequest'
+      responses:
+        '202':
+          description: Pagamento aceito
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  /payments/boleto/validate:
+    post:
+      tags: [Payments]
+      summary: Validar boleto
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [barcode]
+              properties:
+                barcode:
+                  type: string
+                  description: Codigo de barras ou linha digitavel
+      responses:
+        '200':
+          description: Dados do boleto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BoletoInfo'
+
+  /payments/topup:
+    post:
+      tags: [Payments]
+      summary: Recarga de celular
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TopUpRequest'
+      responses:
+        '202':
+          description: Recarga aceita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+  # ==================== INVESTMENTS ====================
+  /investments/portfolio:
+    get:
+      tags: [Investments]
+      summary: Portfolio de investimentos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Portfolio
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+
+  /investments/fixed-income:
+    get:
+      tags: [Investments]
+      summary: Listar produtos de renda fixa
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [CDB, LCI, LCA, LC]
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/FixedIncomeProduct'
+
+  /investments/fixed-income/invest:
+    post:
+      tags: [Investments]
+      summary: Aplicar em renda fixa
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InvestmentRequest'
+      responses:
+        '201':
+          description: Aplicacao realizada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Investment'
+
+  /investments/treasury:
+    get:
+      tags: [Investments]
+      summary: Listar titulos do Tesouro
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de titulos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/TreasuryBond'
+
+  /investments/funds:
+    get:
+      tags: [Investments]
+      summary: Listar fundos de investimento
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [fixed_income, multimarket, stocks, hedge]
+      responses:
+        '200':
+          description: Lista de fundos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InvestmentFund'
+
+  # ==================== LOANS ====================
+  /loans/simulate:
+    post:
+      tags: [Loans]
+      summary: Simular emprestimo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanSimulationRequest'
+      responses:
+        '200':
+          description: Simulacao
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoanSimulation'
+
+  /loans:
+    get:
+      tags: [Loans]
+      summary: Listar emprestimos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de emprestimos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Loan'
+
+    post:
+      tags: [Loans]
+      summary: Contratar emprestimo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoanRequest'
+      responses:
+        '201':
+          description: Emprestimo contratado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Loan'
+
+  # ==================== CRYPTO ====================
+  /crypto/portfolio:
+    get:
+      tags: [Crypto]
+      summary: Carteira de criptomoedas
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Portfolio cripto
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptoPortfolio'
+
+  /crypto/prices:
+    get:
+      tags: [Crypto]
+      summary: Cotacoes de criptomoedas
+      parameters:
+        - name: symbols
+          in: query
+          schema:
+            type: string
+          example: "BTC,ETH,SOL"
+      responses:
+        '200':
+          description: Cotacoes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/CryptoPrice'
+
+  /crypto/buy:
+    post:
+      tags: [Crypto]
+      summary: Comprar criptomoeda
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CryptoOrderRequest'
+      responses:
+        '201':
+          description: Ordem executada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptoOrder'
+
+  /crypto/sell:
+    post:
+      tags: [Crypto]
+      summary: Vender criptomoeda
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CryptoOrderRequest'
+      responses:
+        '201':
+          description: Ordem executada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CryptoOrder'
+
+  # ==================== INSURANCE ====================
+  /insurance/products:
+    get:
+      tags: [Insurance]
+      summary: Listar produtos de seguro
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [life, auto, home, travel, phone]
+      responses:
+        '200':
+          description: Lista de produtos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InsuranceProduct'
+
+  /insurance/quote:
+    post:
+      tags: [Insurance]
+      summary: Cotar seguro
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsuranceQuoteRequest'
+      responses:
+        '200':
+          description: Cotacao
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsuranceQuote'
+
+  /insurance/policies:
+    get:
+      tags: [Insurance]
+      summary: Listar apolices
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de apolices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/InsurancePolicy'
+
+    post:
+      tags: [Insurance]
+      summary: Contratar seguro
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InsuranceContractRequest'
+      responses:
+        '201':
+          description: Seguro contratado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InsurancePolicy'
+
+  # ==================== REWARDS ====================
+  /rewards/balance:
+    get:
+      tags: [Rewards]
+      summary: Saldo de pontos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Saldo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardsBalance'
+
+  /rewards/history:
+    get:
+      tags: [Rewards]
+      summary: Historico de pontos
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/PageSize'
+        - $ref: '#/components/parameters/PageNumber'
+      responses:
+        '200':
+          description: Historico
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RewardsHistoryResponse'
+
+  /rewards/redeem:
+    post:
+      tags: [Rewards]
+      summary: Resgatar pontos
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RedeemRequest'
+      responses:
+        '201':
+          description: Resgate realizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedeemResponse'
+
+  # ==================== LGPD ====================
+  /lgpd/consents:
+    get:
+      tags: [LGPD]
+      summary: Listar consentimentos
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista de consentimentos
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Consent'
+
+    post:
+      tags: [LGPD]
+      summary: Registrar consentimento
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConsentRequest'
+      responses:
+        '201':
+          description: Consentimento registrado
+
+  /lgpd/data-request:
+    post:
+      tags: [LGPD]
+      summary: Solicitar dados pessoais
+      description: Solicita exportacao de todos os dados pessoais (LGPD Art. 18)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataRequest'
+      responses:
+        '202':
+          description: Solicitacao aceita
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataRequestResponse'
+
+  /lgpd/data-deletion:
+    post:
+      tags: [LGPD]
+      summary: Solicitar exclusao de dados
+      description: Solicita exclusao de dados pessoais (LGPD Art. 18)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DeletionRequest'
+      responses:
+        '202':
+          description: Solicitacao aceita
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    AccountId:
+      name: accountId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    CardId:
+      name: cardId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        default: 20
+        maximum: 100
+
+    PageNumber:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+
+  responses:
+    BadRequest:
+      description: Requisicao invalida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Nao autorizado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Recurso nao encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    TokenResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: "Bearer"
+        expires_in:
+          type: integer
+          example: 3600
+
+    Account:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        accountNumber:
+          type: string
+          example: "123456-7"
+        branch:
+          type: string
+          example: "0001"
+        type:
+          type: string
+          enum: [checking, savings]
+        status:
+          type: string
+          enum: [active, blocked, closed]
+        createdAt:
+          type: string
+          format: date-time
+
+    Balance:
+      type: object
+      properties:
+        available:
+          type: number
+          format: decimal
+          example: 1500.50
+        blocked:
+          type: number
+          format: decimal
+          example: 0
+        total:
+          type: number
+          format: decimal
+          example: 1500.50
+        currency:
+          type: string
+          example: "BRL"
+        updatedAt:
+          type: string
+          format: date-time
+
+    StatementResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [credit, debit]
+        category:
+          type: string
+          enum: [pix, ted, boleto, card, internal]
+        amount:
+          type: number
+          format: decimal
+        description:
+          type: string
+        counterparty:
+          type: string
+        date:
+          type: string
+          format: date-time
+        balance:
+          type: number
+          format: decimal
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        pageSize:
+          type: integer
+        totalPages:
+          type: integer
+        totalItems:
+          type: integer
+
+    PIXKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [CPF, CNPJ, EMAIL, PHONE, EVP]
+        value:
+          type: string
+        status:
+          type: string
+          enum: [active, pending, inactive]
+        createdAt:
+          type: string
+          format: date-time
+
+    PIXKeyRequest:
+      type: object
+      required: [type, value, accountId]
+      properties:
+        type:
+          type: string
+          enum: [CPF, CNPJ, EMAIL, PHONE, EVP]
+        value:
+          type: string
+        accountId:
+          type: string
+          format: uuid
+
+    PIXTransferRequest:
+      type: object
+      required: [receiverKey, amount]
+      properties:
+        receiverKey:
+          type: string
+          description: Chave PIX do recebedor
+        amount:
+          type: number
+          format: decimal
+          minimum: 0.01
+        description:
+          type: string
+          maxLength: 140
+        scheduleDate:
+          type: string
+          format: date
+          description: Data para agendamento (opcional)
+
+    PIXTransferResponse:
+      type: object
+      properties:
+        transactionId:
+          type: string
+          format: uuid
+        endToEndId:
+          type: string
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        createdAt:
+          type: string
+          format: date-time
+
+    PIXTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        endToEndId:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        sender:
+          $ref: '#/components/schemas/PIXParty'
+        receiver:
+          $ref: '#/components/schemas/PIXParty'
+        status:
+          type: string
+          enum: [pending, processing, completed, failed, refunded]
+        description:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    PIXParty:
+      type: object
+      properties:
+        name:
+          type: string
+        document:
+          type: string
+        bank:
+          type: string
+        key:
+          type: string
+
+    QRCodeRequest:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [static, dynamic]
+        amount:
+          type: number
+          format: decimal
+        description:
+          type: string
+        expiresIn:
+          type: integer
+          description: Tempo de expiracao em minutos
+
+    QRCodeResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        payload:
+          type: string
+          description: EMV payload para gerar QR Code
+        imageBase64:
+          type: string
+          description: Imagem do QR Code em base64
+        expiresAt:
+          type: string
+          format: date-time
+
+    QRCodeDecoded:
+      type: object
+      properties:
+        type:
+          type: string
+          enum: [static, dynamic]
+        amount:
+          type: number
+          format: decimal
+        receiver:
+          $ref: '#/components/schemas/PIXParty'
+        description:
+          type: string
+
+    Card:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        lastFourDigits:
+          type: string
+          example: "1234"
+        brand:
+          type: string
+          enum: [visa, mastercard, elo]
+        type:
+          type: string
+          enum: [credit, debit, multiple]
+        status:
+          type: string
+          enum: [active, blocked, cancelled]
+        limit:
+          type: number
+          format: decimal
+        availableLimit:
+          type: number
+          format: decimal
+        dueDate:
+          type: integer
+          minimum: 1
+          maximum: 28
+        virtual:
+          type: boolean
+
+    CardRequest:
+      type: object
+      required: [type, virtual]
+      properties:
+        type:
+          type: string
+          enum: [credit, debit, multiple]
+        virtual:
+          type: boolean
+        deliveryAddress:
+          $ref: '#/components/schemas/Address'
+
+    VirtualCardRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nome do cartao virtual
+        type:
+          type: string
+          enum: [standard, temporary, subscription]
+        limit:
+          type: number
+          format: decimal
+        expiresAt:
+          type: string
+          format: date-time
+          description: Data de expiracao (para temporario)
+
+    VirtualCard:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        number:
+          type: string
+        cvv:
+          type: string
+        expiryMonth:
+          type: string
+        expiryYear:
+          type: string
+        limit:
+          type: number
+          format: decimal
+        type:
+          type: string
+          enum: [standard, temporary, subscription]
+        status:
+          type: string
+          enum: [active, blocked]
+
+    CardTransactionsResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/CardTransaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CardTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        merchant:
+          type: string
+        category:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        installments:
+          type: integer
+        status:
+          type: string
+          enum: [pending, approved, denied, refunded]
+        date:
+          type: string
+          format: date-time
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+        number:
+          type: string
+        complement:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+
+    BoletoPaymentRequest:
+      type: object
+      required: [barcode]
+      properties:
+        barcode:
+          type: string
+        amount:
+          type: number
+          format: decimal
+          description: Valor (opcional, usa valor do boleto se nao informado)
+        scheduleDate:
+          type: string
+          format: date
+
+    BoletoInfo:
+      type: object
+      properties:
+        barcode:
+          type: string
+        amount:
+          type: number
+          format: decimal
+        dueDate:
+          type: string
+          format: date
+        beneficiary:
+          type: string
+        bank:
+          type: string
+        discount:
+          type: number
+          format: decimal
+        fine:
+          type: number
+          format: decimal
+        interest:
+          type: number
+          format: decimal
+
+    PaymentResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+        scheduledDate:
+          type: string
+          format: date
+        createdAt:
+          type: string
+          format: date-time
+
+    TopUpRequest:
+      type: object
+      required: [phoneNumber, carrier, amount]
+      properties:
+        phoneNumber:
+          type: string
+          example: "11999999999"
+        carrier:
+          type: string
+          enum: [vivo, claro, tim, oi]
+        amount:
+          type: number
+          format: decimal
+          enum: [10, 15, 20, 30, 40, 50, 100]
+
+    Portfolio:
+      type: object
+      properties:
+        totalValue:
+          type: number
+          format: decimal
+        totalProfit:
+          type: number
+          format: decimal
+        profitPercentage:
+          type: number
+          format: decimal
+        investments:
+          type: array
+          items:
+            $ref: '#/components/schemas/Investment'
+
+    Investment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product:
+          type: string
+        type:
+          type: string
+          enum: [CDB, LCI, LCA, TREASURY, FUND, STOCK]
+        investedAmount:
+          type: number
+          format: decimal
+        currentValue:
+          type: number
+          format: decimal
+        profit:
+          type: number
+          format: decimal
+        profitPercentage:
+          type: number
+          format: decimal
+        maturityDate:
+          type: string
+          format: date
+        investedAt:
+          type: string
+          format: date-time
+
+    FixedIncomeProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [CDB, LCI, LCA, LC]
+        issuer:
+          type: string
+        rate:
+          type: number
+          format: decimal
+          description: Taxa em % do CDI ou % a.a.
+        rateType:
+          type: string
+          enum: [CDI, IPCA, PRE]
+        minimumInvestment:
+          type: number
+          format: decimal
+        maturityDate:
+          type: string
+          format: date
+        liquidity:
+          type: string
+          enum: [daily, at_maturity]
+        fgcCovered:
+          type: boolean
+
+    InvestmentRequest:
+      type: object
+      required: [productId, amount]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+          minimum: 1
+
+    TreasuryBond:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          example: "Tesouro Selic 2029"
+        type:
+          type: string
+          enum: [SELIC, IPCA, PREFIXADO]
+        rate:
+          type: number
+          format: decimal
+        maturityDate:
+          type: string
+          format: date
+        minimumInvestment:
+          type: number
+          format: decimal
+        unitPrice:
+          type: number
+          format: decimal
+
+    InvestmentFund:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        category:
+          type: string
+          enum: [fixed_income, multimarket, stocks, hedge]
+        manager:
+          type: string
+        minimumInvestment:
+          type: number
+          format: decimal
+        adminFee:
+          type: number
+          format: decimal
+        performanceFee:
+          type: number
+          format: decimal
+        return12m:
+          type: number
+          format: decimal
+        riskLevel:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    LoanSimulationRequest:
+      type: object
+      required: [amount, installments]
+      properties:
+        amount:
+          type: number
+          format: decimal
+          minimum: 100
+        installments:
+          type: integer
+          minimum: 1
+          maximum: 60
+        type:
+          type: string
+          enum: [personal, payroll, secured]
+
+    LoanSimulation:
+      type: object
+      properties:
+        amount:
+          type: number
+          format: decimal
+        installments:
+          type: integer
+        monthlyPayment:
+          type: number
+          format: decimal
+        totalAmount:
+          type: number
+          format: decimal
+        interestRate:
+          type: number
+          format: decimal
+        cet:
+          type: number
+          format: decimal
+          description: Custo Efetivo Total
+        firstDueDate:
+          type: string
+          format: date
+
+    LoanRequest:
+      type: object
+      required: [amount, installments]
+      properties:
+        amount:
+          type: number
+          format: decimal
+        installments:
+          type: integer
+        purpose:
+          type: string
+
+    Loan:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: decimal
+        remainingAmount:
+          type: number
+          format: decimal
+        installments:
+          type: integer
+        paidInstallments:
+          type: integer
+        monthlyPayment:
+          type: number
+          format: decimal
+        interestRate:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [active, paid_off, defaulted]
+        nextDueDate:
+          type: string
+          format: date
+        contractedAt:
+          type: string
+          format: date-time
+
+    CryptoPortfolio:
+      type: object
+      properties:
+        totalValueBRL:
+          type: number
+          format: decimal
+        totalProfitBRL:
+          type: number
+          format: decimal
+        assets:
+          type: array
+          items:
+            $ref: '#/components/schemas/CryptoAsset'
+
+    CryptoAsset:
+      type: object
+      properties:
+        symbol:
+          type: string
+          example: "BTC"
+        name:
+          type: string
+          example: "Bitcoin"
+        amount:
+          type: number
+          format: decimal
+        averagePrice:
+          type: number
+          format: decimal
+        currentPrice:
+          type: number
+          format: decimal
+        valueBRL:
+          type: number
+          format: decimal
+        profitBRL:
+          type: number
+          format: decimal
+        profitPercentage:
+          type: number
+          format: decimal
+
+    CryptoPrice:
+      type: object
+      properties:
+        symbol:
+          type: string
+        name:
+          type: string
+        priceBRL:
+          type: number
+          format: decimal
+        priceUSD:
+          type: number
+          format: decimal
+        change24h:
+          type: number
+          format: decimal
+        volume24h:
+          type: number
+          format: decimal
+        marketCap:
+          type: number
+          format: decimal
+        updatedAt:
+          type: string
+          format: date-time
+
+    CryptoOrderRequest:
+      type: object
+      required: [symbol, amountBRL]
+      properties:
+        symbol:
+          type: string
+          example: "BTC"
+        amountBRL:
+          type: number
+          format: decimal
+          minimum: 10
+
+    CryptoOrder:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        symbol:
+          type: string
+        type:
+          type: string
+          enum: [buy, sell]
+        amountBRL:
+          type: number
+          format: decimal
+        amountCrypto:
+          type: number
+          format: decimal
+        price:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [pending, completed, failed]
+        executedAt:
+          type: string
+          format: date-time
+
+    InsuranceProduct:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        type:
+          type: string
+          enum: [life, auto, home, travel, phone]
+        description:
+          type: string
+        coverages:
+          type: array
+          items:
+            type: string
+        startingPrice:
+          type: number
+          format: decimal
+
+    InsuranceQuoteRequest:
+      type: object
+      required: [productId]
+      properties:
+        productId:
+          type: string
+          format: uuid
+        coverageAmount:
+          type: number
+          format: decimal
+        additionalData:
+          type: object
+          additionalProperties: true
+
+    InsuranceQuote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        product:
+          $ref: '#/components/schemas/InsuranceProduct'
+        monthlyPremium:
+          type: number
+          format: decimal
+        annualPremium:
+          type: number
+          format: decimal
+        coverageAmount:
+          type: number
+          format: decimal
+        coverages:
+          type: array
+          items:
+            type: string
+        validUntil:
+          type: string
+          format: date-time
+
+    InsuranceContractRequest:
+      type: object
+      required: [quoteId]
+      properties:
+        quoteId:
+          type: string
+          format: uuid
+        beneficiaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Beneficiary'
+
+    Beneficiary:
+      type: object
+      properties:
+        name:
+          type: string
+        document:
+          type: string
+        relationship:
+          type: string
+        percentage:
+          type: number
+          format: decimal
+
+    InsurancePolicy:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        policyNumber:
+          type: string
+        product:
+          $ref: '#/components/schemas/InsuranceProduct'
+        status:
+          type: string
+          enum: [active, cancelled, expired]
+        monthlyPremium:
+          type: number
+          format: decimal
+        coverageAmount:
+          type: number
+          format: decimal
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        beneficiaries:
+          type: array
+          items:
+            $ref: '#/components/schemas/Beneficiary'
+
+    RewardsBalance:
+      type: object
+      properties:
+        points:
+          type: integer
+        level:
+          type: string
+          enum: [bronze, silver, gold, platinum, black]
+        expiringPoints:
+          type: integer
+        expiringDate:
+          type: string
+          format: date
+        pointsToNextLevel:
+          type: integer
+
+    RewardsHistoryResponse:
+      type: object
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/RewardsTransaction'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    RewardsTransaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [earned, redeemed, expired]
+        points:
+          type: integer
+        description:
+          type: string
+        date:
+          type: string
+          format: date-time
+
+    RedeemRequest:
+      type: object
+      required: [rewardId, points]
+      properties:
+        rewardId:
+          type: string
+          format: uuid
+        points:
+          type: integer
+
+    RedeemResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, completed]
+        pointsRedeemed:
+          type: integer
+        reward:
+          type: string
+
+    Consent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        purpose:
+          type: string
+        status:
+          type: string
+          enum: [active, revoked]
+        grantedAt:
+          type: string
+          format: date-time
+        revokedAt:
+          type: string
+          format: date-time
+
+    ConsentRequest:
+      type: object
+      required: [purpose, granted]
+      properties:
+        purpose:
+          type: string
+        granted:
+          type: boolean
+
+    DataRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          type: string
+          enum: [export, access, rectification]
+        format:
+          type: string
+          enum: [json, pdf]
+          default: json
+
+    DataRequestResponse:
+      type: object
+      properties:
+        requestId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [pending, processing, completed]
+        estimatedCompletion:
+          type: string
+          format: date-time
+
+    DeletionRequest:
+      type: object
+      properties:
+        reason:
+          type: string
+        confirmation:
+          type: boolean
+          description: Deve ser true para confirmar exclusao
+
+security:
+  - bearerAuth: []

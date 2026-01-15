@@ -1,0 +1,206 @@
+# ============================================
+# Athena Pay - Prometheus Alert Rules
+# ============================================
+
+groups:
+  # ============================================
+  # Service Availability Alerts
+  # ============================================
+  - name: service_availability
+    rules:
+      - alert: ServiceDown
+        expr: up == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.job }} is down"
+          description: "{{ $labels.job }} has been down for more than 1 minute."
+
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, service)) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency on {{ $labels.service }}"
+          description: "95th percentile latency is above 2 seconds for {{ $labels.service }}."
+
+      - alert: HighErrorRate
+        expr: sum(rate(http_requests_total{status_code=~"5.."}[5m])) by (service) / sum(rate(http_requests_total[5m])) by (service) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High error rate on {{ $labels.service }}"
+          description: "Error rate is above 5% for {{ $labels.service }}."
+
+  # ============================================
+  # Database Alerts
+  # ============================================
+  - name: database
+    rules:
+      - alert: DatabaseConnectionPoolExhausted
+        expr: db_connections_active / db_connections_max > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Database connection pool nearly exhausted"
+          description: "Database connection pool is at {{ $value | humanizePercentage }} capacity."
+
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, sum(rate(db_query_duration_seconds_bucket[5m])) by (le, operation)) > 1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "95th percentile query duration for {{ $labels.operation }} is above 1 second."
+
+  # ============================================
+  # Circuit Breaker Alerts
+  # ============================================
+  - name: circuit_breaker
+    rules:
+      - alert: CircuitBreakerOpen
+        expr: circuit_breaker_state == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Circuit breaker open for {{ $labels.target_service }}"
+          description: "Circuit breaker for {{ $labels.target_service }} has been open for more than 1 minute."
+
+      - alert: CircuitBreakerHalfOpen
+        expr: circuit_breaker_state == 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Circuit breaker half-open for {{ $labels.target_service }}"
+          description: "Circuit breaker for {{ $labels.target_service }} has been half-open for more than 5 minutes."
+
+  # ============================================
+  # Business Metrics Alerts
+  # ============================================
+  - name: business_metrics
+    rules:
+      - alert: HighTransactionFailureRate
+        expr: sum(rate(transactions_total{status="failed"}[5m])) / sum(rate(transactions_total[5m])) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High transaction failure rate"
+          description: "Transaction failure rate is above 10%."
+
+      - alert: UnusualTransactionVolume
+        expr: sum(rate(transactions_total[1h])) > sum(rate(transactions_total[1h] offset 1d)) * 3
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Unusual transaction volume detected"
+          description: "Transaction volume is 3x higher than same time yesterday."
+
+      - alert: LargeTransactionAmount
+        expr: increase(transaction_amount_total{type="pix"}[5m]) > 1000000000
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "Large transaction detected"
+          description: "Total PIX transaction amount in last 5 minutes exceeds R$ 10,000,000."
+
+  # ============================================
+  # Resource Alerts
+  # ============================================
+  - name: resources
+    rules:
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes / (1024 * 1024 * 1024) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage on {{ $labels.service }}"
+          description: "{{ $labels.service }} is using more than 1.5GB of memory."
+
+      - alert: HighCPUUsage
+        expr: rate(process_cpu_seconds_total[5m]) > 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage on {{ $labels.service }}"
+          description: "{{ $labels.service }} CPU usage is above 90%."
+
+  # ============================================
+  # Security Alerts
+  # ============================================
+  - name: security
+    rules:
+      - alert: HighAuthenticationFailures
+        expr: sum(rate(http_requests_total{status_code="401"}[5m])) > 100
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High authentication failure rate"
+          description: "More than 100 authentication failures per second in the last 5 minutes."
+
+      - alert: PotentialBruteForce
+        expr: sum(rate(http_requests_total{status_code="401", endpoint="/auth/login"}[1m])) by (client_ip) > 10
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Potential brute force attack detected"
+          description: "IP {{ $labels.client_ip }} has more than 10 failed login attempts per minute."
+
+      - alert: RateLimitExceeded
+        expr: sum(rate(http_requests_total{status_code="429"}[5m])) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High rate of rate-limited requests"
+          description: "More than 50 rate-limited requests per second."
+
+  # ============================================
+  # PIX Specific Alerts
+  # ============================================
+  - name: pix_alerts
+    rules:
+      - alert: PixTransferSLABreach
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{endpoint="/pix/transfer"}[5m])) by (le)) > 10
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "PIX transfer SLA breach"
+          description: "99th percentile PIX transfer latency exceeds 10 seconds (BACEN SLA)."
+
+      - alert: HighPixDevolutionRate
+        expr: sum(rate(transactions_total{type="pix_devolution"}[1h])) / sum(rate(transactions_total{type="pix"}[1h])) > 0.05
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High PIX devolution rate"
+          description: "PIX devolution rate is above 5% in the last hour."
+
+  # ============================================
+  # Cache Alerts
+  # ============================================
+  - name: cache
+    rules:
+      - alert: LowCacheHitRate
+        expr: sum(rate(cache_hits_total[5m])) / (sum(rate(cache_hits_total[5m])) + sum(rate(cache_misses_total[5m]))) < 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Low cache hit rate"
+          description: "Cache hit rate is below 80%."

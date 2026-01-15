@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: kyc-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: kyc-service } }
+  template:
+    metadata: { labels: { app: kyc-service } }
+    spec:
+      containers:
+        - name: kyc-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

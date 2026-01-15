@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: wire-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: wire-service } }
+  template:
+    metadata: { labels: { app: wire-service } }
+    spec:
+      containers:
+        - name: wire-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

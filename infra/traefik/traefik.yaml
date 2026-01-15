@@ -1,0 +1,6 @@
+api: {}
+providers:
+  docker: {}
+entryPoints:
+  web:
+    address: ":80"

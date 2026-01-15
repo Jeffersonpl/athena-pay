@@ -1,0 +1,14 @@
+# Athena Pay - Grafana Dashboard Provisioning
+apiVersion: 1
+
+providers:
+  - name: 'Athena Pay Dashboards'
+    orgId: 1
+    folder: 'Athena Pay'
+    folderUid: 'athena-pay'
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards

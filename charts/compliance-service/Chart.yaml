@@ -1,0 +1,4 @@
+apiVersion: v2
+name: compliance-service
+version: 0.1.0
+appVersion: HMLPROD

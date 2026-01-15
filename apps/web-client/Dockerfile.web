@@ -1,0 +1,23 @@
+FROM node:20-alpine AS build
+WORKDIR /app
+
+COPY package.json ./
+RUN npm ci --silent || npm i --silent
+COPY . .
+
+ARG VITE_KEYCLOAK_URL
+ARG VITE_KEYCLOAK_REALM
+ARG VITE_KEYCLOAK_CLIENT_ID
+ARG VITE_API_BASE
+ARG VITE_CARD_BASE
+ARG VITE_CONFIG_BASE
+
+ENV VITE_KEYCLOAK_URL=$VITE_KEYCLOAK_URL     VITE_KEYCLOAK_REALM=$VITE_KEYCLOAK_REALM     VITE_KEYCLOAK_CLIENT_ID=$VITE_KEYCLOAK_CLIENT_ID     VITE_API_BASE=$VITE_API_BASE     VITE_CARD_BASE=$VITE_CARD_BASE     VITE_CONFIG_BASE=$VITE_CONFIG_BASE
+
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+EXPOSE 80
+CMD ["nginx","-g","daemon off;"]

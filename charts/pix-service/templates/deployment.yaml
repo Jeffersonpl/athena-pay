@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: pix-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: pix-service } }
+  template:
+    metadata: { labels: { app: pix-service } }
+    spec:
+      containers:
+        - name: pix-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

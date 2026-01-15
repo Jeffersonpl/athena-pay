@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Keycloak Auth Test</title>
+</head>
+<body>
+  <h1>Keycloak Auth Test</h1>
+  <div id="status">Loading...</div>
+  <pre id="log" style="background:#f5f5f5;padding:10px;max-height:400px;overflow:auto;"></pre>
+  <br>
+  <button onclick="doLogin()">Manual Login</button>
+  <button onclick="clearAndReload()">Clear Storage & Reload</button>
+
+  <script type="module">
+    import Keycloak from 'https://esm.sh/keycloak-js@26.0.0';
+
+    const log = (msg) => {
+      console.log(msg);
+      document.getElementById('log').textContent += new Date().toISOString().substr(11,8) + ' ' + msg + '\n';
+    };
+
+    window.log = log;
+
+    log('Page loaded');
+    log('URL: ' + window.location.href);
+    log('Search params: ' + window.location.search);
+    log('Hash: ' + window.location.hash);
+
+    // Check session storage
+    log('Session storage keys: ' + Object.keys(sessionStorage).join(', '));
+
+    const kc = new Keycloak({
+      url: 'http://localhost:8081',
+      realm: 'athena',
+      clientId: 'admin-web'
+    });
+
+    window.kc = kc;
+
+    window.doLogin = () => {
+      log('Manual login triggered...');
+      kc.login({
+        redirectUri: window.location.href
+      });
+    };
+
+    window.clearAndReload = () => {
+      sessionStorage.clear();
+      localStorage.clear();
+      window.location.reload();
+    };
+
+    log('Keycloak instance created');
+    document.getElementById('status').textContent = 'Keycloak created, initializing...';
+
+    try {
+      log('Calling kc.init()...');
+
+      const authenticated = await kc.init({
+        onLoad: 'check-sso',  // Changed to check-sso to see what happens
+        checkLoginIframe: false,
+        pkceMethod: 'S256',
+        enableLogging: true
+      });
+
+      log('Init returned: ' + authenticated);
+
+      if (authenticated) {
+        document.getElementById('status').textContent = '✅ SUCCESS! User: ' + kc.tokenParsed.preferred_username;
+        log('User: ' + kc.tokenParsed.preferred_username);
+        log('Roles: ' + JSON.stringify(kc.tokenParsed.realm_access?.roles));
+      } else {
+        document.getElementById('status').textContent = '❌ Not authenticated - Click "Manual Login"';
+        log('Not authenticated');
+      }
+    } catch (err) {
+      log('ERROR: ' + (err.message || JSON.stringify(err)));
+      document.getElementById('status').textContent = '❌ Error: ' + (err.message || JSON.stringify(err));
+    }
+  </script>
+</body>
+</html>

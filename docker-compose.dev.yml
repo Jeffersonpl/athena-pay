@@ -1,0 +1,153 @@
+version: "3.9"
+
+x-keycloak-image: &kcimg quay.io/keycloak/keycloak:26.1
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: fin
+      POSTGRES_PASSWORD: finpass
+      POSTGRES_DB: fintech
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  keycloak:
+    image: *kcimg
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command: ["start-dev"]
+    ports: ["8081:8080"]
+    restart: unless-stopped
+
+  # one-shot bootstrapper that creates realm/clients and relaxes CSP for DEV
+  keycloak-setup:
+    image: *kcimg
+    depends_on:
+      - keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    volumes:
+      - ./infra/keycloak/setup.sh:/setup.sh:ro
+    entrypoint: ["/bin/sh","/setup.sh"]
+    restart: "no"
+
+  accounts-service:
+    build:
+      context: ./services/accounts-service
+      dockerfile: Dockerfile
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://fin:finpass@postgres:5432/fintech
+    depends_on: [ postgres ]
+    ports: ["8082:8080"]
+    restart: unless-stopped
+
+  card-service:
+    build:
+      context: ./services/card-service
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://fin:finpass@postgres:5432/fintech
+    depends_on: [ postgres ]
+    ports: ["9084:8080"]
+    restart: unless-stopped
+
+  config-service:
+    build:
+      context: ./services/config-service
+    environment:
+      - DATABASE_URL=postgresql+psycopg2://fin:finpass@postgres:5432/fintech
+    depends_on: [ postgres ]
+    ports: ["9085:8080"]
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+    environment:
+      - ENV=dev
+      - ACCOUNTS_URL=http://accounts-service:8080
+      - CARDS_URL=http://card-service:8080
+      - LGPD_URL=http://lgpd-service:8080
+      - REDIS_URL=redis://redis:6379
+      - ALLOWED_ORIGINS=http://localhost:5173,http://localhost:5174,http://localhost:3000
+      - RATE_LIMIT_REQUESTS=60
+      - RATE_LIMIT_WINDOW=60
+    depends_on: [ accounts-service, card-service, redis ]
+    ports: ["8080:8080"]
+    restart: unless-stopped
+
+  web-client:
+    build:
+      context: ./apps/web-client
+      dockerfile: Dockerfile.web
+      args:
+        - VITE_KEYCLOAK_URL=http://localhost:8081
+        - VITE_KEYCLOAK_REALM=athena
+        - VITE_KEYCLOAK_CLIENT_ID=web-client
+        - VITE_API_BASE=http://localhost:8080
+        - VITE_CARD_BASE=http://localhost:9084
+        - VITE_CONFIG_BASE=http://localhost:9085
+    depends_on: [ api-gateway, keycloak-setup ]
+    ports: ["5174:80"]
+    restart: unless-stopped
+
+  admin-web:
+    build:
+      context: ./apps/admin-web
+      dockerfile: Dockerfile.web
+      args:
+        - VITE_KEYCLOAK_URL=http://localhost:8081
+        - VITE_KEYCLOAK_REALM=athena
+        - VITE_KEYCLOAK_CLIENT_ID=admin-web
+        - VITE_API_BASE=http://localhost:8080
+        - VITE_CARD_BASE=http://localhost:9084
+        - VITE_CONFIG_BASE=http://localhost:9085
+    depends_on: [ api-gateway, keycloak-setup ]
+    ports: ["5173:80"]
+    restart: unless-stopped
+
+  pix-simulator:
+    build:
+      context: ./services/simulators/pix-simulator
+      dockerfile: Dockerfile
+    ports: ["9091:8080"]
+    restart: unless-stopped
+
+  acquirer-simulator:
+    build:
+      context: ./services/simulators/acquirer-simulator
+      dockerfile: Dockerfile
+    ports: ["9092:8080"]
+    restart: unless-stopped
+
+  # ==================== Security & Compliance ====================
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+
+  lgpd-service:
+    build:
+      context: ./services/lgpd-service
+      dockerfile: Dockerfile
+    environment:
+      - ENV=dev
+      - DATABASE_URL=postgresql+psycopg2://fin:finpass@postgres:5432/fintech
+      - ACCOUNTS_SERVICE_URL=http://accounts-service:8080
+      - DPO_NAME=Data Protection Officer
+      - DPO_EMAIL=dpo@athenapay.com.br
+    depends_on: [ postgres, accounts-service ]
+    ports: ["8005:8080"]
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redis_data:

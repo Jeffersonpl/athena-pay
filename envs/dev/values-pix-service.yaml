@@ -1,0 +1,3 @@
+image: { repository: yourrepo/pix-service, tag: latest }
+replicaCount: 2
+ingress: { enabled: false, host: '', tlsSecret: '' }

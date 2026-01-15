@@ -1,0 +1,628 @@
+/* ==========================================================================
+   Athena Pay - Keycloak Login Theme
+   Premium Dark Mode Design
+   ========================================================================== */
+
+/* CSS Variables */
+:root {
+  --athena-bg-primary: #0D0D0D;
+  --athena-bg-secondary: #1A1A1A;
+  --athena-bg-tertiary: #262626;
+  --athena-gold-primary: #C9A227;
+  --athena-gold-light: #E5B82A;
+  --athena-gold-dark: #A68B1F;
+  --athena-text-primary: #FFFFFF;
+  --athena-text-secondary: #A3A3A3;
+  --athena-text-muted: #666666;
+  --athena-border: #333333;
+  --athena-success: #22C55E;
+  --athena-error: #EF4444;
+  --athena-warning: #F59E0B;
+  --athena-info: #3B82F6;
+  --athena-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  --athena-shadow-gold: 0 0 30px rgba(201, 162, 39, 0.3);
+  --athena-radius-sm: 8px;
+  --athena-radius-md: 12px;
+  --athena-radius-lg: 16px;
+  --athena-radius-xl: 24px;
+  --athena-transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Reset & Base */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Login Page Container */
+.login-pf {
+  background: var(--athena-bg-primary) !important;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.login-pf body {
+  background: var(--athena-bg-primary) !important;
+}
+
+/* Background Pattern */
+.login-pf::before {
+  content: '';
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse at 20% 80%, rgba(201, 162, 39, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(201, 162, 39, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(201, 162, 39, 0.03) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Main Card Container */
+#kc-content {
+  position: relative;
+  z-index: 1;
+}
+
+.card-pf {
+  background: var(--athena-bg-secondary) !important;
+  border: 1px solid var(--athena-border) !important;
+  border-radius: var(--athena-radius-xl) !important;
+  box-shadow: var(--athena-shadow) !important;
+  padding: 48px !important;
+  max-width: 440px !important;
+  width: 100% !important;
+  margin: 20px !important;
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Logo / Header */
+#kc-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+#kc-header-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Custom Logo */
+.kc-logo-text {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--athena-text-primary);
+  letter-spacing: -0.5px;
+}
+
+.kc-logo-text::before {
+  content: '';
+  width: 14px;
+  height: 14px;
+  background: linear-gradient(135deg, var(--athena-gold-light) 0%, var(--athena-gold-primary) 50%, var(--athena-gold-dark) 100%);
+  border-radius: 50%;
+  box-shadow: 0 0 20px rgba(201, 162, 39, 0.6);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(201, 162, 39, 0.6); }
+  50% { box-shadow: 0 0 30px rgba(201, 162, 39, 0.8); }
+}
+
+/* Page Title */
+#kc-page-title {
+  color: var(--athena-text-secondary) !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  margin-top: 8px;
+}
+
+/* Form Container */
+#kc-form {
+  margin-top: 24px;
+}
+
+#kc-form-wrapper {
+  width: 100%;
+}
+
+/* Form Groups */
+.form-group {
+  margin-bottom: 20px !important;
+}
+
+/* Labels */
+.control-label,
+label {
+  color: var(--athena-text-secondary) !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  margin-bottom: 8px !important;
+  display: block;
+}
+
+/* Input Fields */
+.form-control,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="tel"] {
+  background: var(--athena-bg-tertiary) !important;
+  border: 1px solid var(--athena-border) !important;
+  border-radius: var(--athena-radius-md) !important;
+  color: var(--athena-text-primary) !important;
+  font-size: 15px !important;
+  padding: 14px 16px !important;
+  width: 100% !important;
+  transition: var(--athena-transition) !important;
+  height: auto !important;
+}
+
+.form-control:focus,
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus {
+  background: var(--athena-bg-tertiary) !important;
+  border-color: var(--athena-gold-primary) !important;
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.15) !important;
+  outline: none !important;
+}
+
+.form-control::placeholder {
+  color: var(--athena-text-muted) !important;
+}
+
+/* Input with Icon */
+.input-group {
+  position: relative;
+}
+
+.input-group-addon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--athena-text-muted);
+  z-index: 1;
+}
+
+.input-group .form-control {
+  padding-left: 48px !important;
+}
+
+/* Primary Button (Login) */
+.btn-primary,
+input[type="submit"],
+button[type="submit"] {
+  background: linear-gradient(135deg, var(--athena-gold-light) 0%, var(--athena-gold-primary) 50%, var(--athena-gold-dark) 100%) !important;
+  border: none !important;
+  border-radius: var(--athena-radius-md) !important;
+  color: #000 !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  padding: 14px 24px !important;
+  width: 100% !important;
+  cursor: pointer !important;
+  transition: var(--athena-transition) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  margin-top: 8px !important;
+}
+
+.btn-primary:hover,
+input[type="submit"]:hover,
+button[type="submit"]:hover {
+  background: linear-gradient(135deg, var(--athena-gold-primary) 0%, var(--athena-gold-dark) 100%) !important;
+  box-shadow: var(--athena-shadow-gold) !important;
+  transform: translateY(-2px);
+}
+
+.btn-primary:active,
+input[type="submit"]:active,
+button[type="submit"]:active {
+  transform: translateY(0);
+}
+
+.btn-primary:focus,
+input[type="submit"]:focus,
+button[type="submit"]:focus {
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.3) !important;
+  outline: none !important;
+}
+
+/* Secondary/Default Button */
+.btn-default {
+  background: transparent !important;
+  border: 1px solid var(--athena-border) !important;
+  border-radius: var(--athena-radius-md) !important;
+  color: var(--athena-text-primary) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  padding: 12px 20px !important;
+  transition: var(--athena-transition) !important;
+}
+
+.btn-default:hover {
+  background: var(--athena-bg-tertiary) !important;
+  border-color: var(--athena-gold-primary) !important;
+  color: var(--athena-gold-primary) !important;
+}
+
+/* Links */
+a {
+  color: var(--athena-gold-primary) !important;
+  text-decoration: none !important;
+  transition: var(--athena-transition) !important;
+}
+
+a:hover {
+  color: var(--athena-gold-light) !important;
+  text-decoration: none !important;
+}
+
+/* Forgot Password / Register Links */
+#kc-registration,
+#kc-form-options {
+  text-align: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--athena-border);
+}
+
+#kc-registration span,
+#kc-form-options span {
+  color: var(--athena-text-secondary);
+  font-size: 14px;
+}
+
+/* Remember Me Checkbox */
+.checkbox,
+.checkbox-primary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 !important;
+}
+
+.checkbox input[type="checkbox"],
+.checkbox-primary input[type="checkbox"] {
+  width: 18px !important;
+  height: 18px !important;
+  accent-color: var(--athena-gold-primary);
+  cursor: pointer;
+}
+
+.checkbox label,
+.checkbox-primary label {
+  color: var(--athena-text-secondary) !important;
+  font-size: 13px !important;
+  cursor: pointer;
+  margin: 0 !important;
+}
+
+/* Error Messages */
+.alert,
+.alert-error,
+.alert-danger,
+.kc-feedback-text {
+  background: rgba(239, 68, 68, 0.1) !important;
+  border: 1px solid rgba(239, 68, 68, 0.3) !important;
+  border-radius: var(--athena-radius-md) !important;
+  color: var(--athena-error) !important;
+  padding: 14px 16px !important;
+  margin-bottom: 20px !important;
+  font-size: 13px !important;
+}
+
+/* Success Messages */
+.alert-success {
+  background: rgba(34, 197, 94, 0.1) !important;
+  border: 1px solid rgba(34, 197, 94, 0.3) !important;
+  color: var(--athena-success) !important;
+}
+
+/* Warning Messages */
+.alert-warning {
+  background: rgba(245, 158, 11, 0.1) !important;
+  border: 1px solid rgba(245, 158, 11, 0.3) !important;
+  color: var(--athena-warning) !important;
+}
+
+/* Info Messages */
+.alert-info {
+  background: rgba(59, 130, 246, 0.1) !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+  color: var(--athena-info) !important;
+}
+
+/* Social Login Buttons */
+#kc-social-providers {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--athena-border);
+}
+
+#kc-social-providers ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#kc-social-providers li {
+  margin: 0;
+}
+
+.zocial {
+  background: var(--athena-bg-tertiary) !important;
+  border: 1px solid var(--athena-border) !important;
+  border-radius: var(--athena-radius-md) !important;
+  color: var(--athena-text-primary) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 12px !important;
+  padding: 12px 20px !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  transition: var(--athena-transition) !important;
+  width: 100% !important;
+}
+
+.zocial:hover {
+  background: var(--athena-bg-secondary) !important;
+  border-color: var(--athena-gold-primary) !important;
+}
+
+/* Divider "or" */
+.login-pf-social-section-title {
+  color: var(--athena-text-muted) !important;
+  font-size: 12px !important;
+  text-align: center;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.login-pf-social-section-title::before,
+.login-pf-social-section-title::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  width: 40%;
+  height: 1px;
+  background: var(--athena-border);
+}
+
+.login-pf-social-section-title::before {
+  left: 0;
+}
+
+.login-pf-social-section-title::after {
+  right: 0;
+}
+
+/* OTP / MFA */
+#kc-totp-settings {
+  background: var(--athena-bg-tertiary);
+  border-radius: var(--athena-radius-md);
+  padding: 20px;
+  margin: 20px 0;
+}
+
+.kc-qrcode {
+  background: #fff;
+  padding: 16px;
+  border-radius: var(--athena-radius-md);
+  display: inline-block;
+}
+
+/* Required Field Indicator */
+.required {
+  color: var(--athena-error) !important;
+}
+
+/* Helper Text */
+.help-block {
+  color: var(--athena-text-muted) !important;
+  font-size: 12px !important;
+  margin-top: 6px;
+}
+
+/* Footer */
+#kc-info {
+  text-align: center;
+  margin-top: 32px;
+}
+
+#kc-info-wrapper {
+  color: var(--athena-text-muted);
+  font-size: 12px;
+}
+
+/* Password Visibility Toggle */
+.pf-c-button.pf-m-control {
+  background: transparent !important;
+  border: none !important;
+  color: var(--athena-text-muted) !important;
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.pf-c-button.pf-m-control:hover {
+  color: var(--athena-gold-primary) !important;
+}
+
+/* Loading State */
+.btn-primary.loading,
+input[type="submit"].loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.btn-primary.loading::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-left: 8px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Responsive Design */
+@media (max-width: 480px) {
+  .card-pf {
+    padding: 32px 24px !important;
+    margin: 16px !important;
+    border-radius: var(--athena-radius-lg) !important;
+  }
+
+  .kc-logo-text {
+    font-size: 24px;
+  }
+
+  .form-control,
+  input[type="text"],
+  input[type="password"],
+  input[type="email"] {
+    padding: 12px 14px !important;
+    font-size: 16px !important; /* Prevent zoom on iOS */
+  }
+
+  .btn-primary,
+  input[type="submit"],
+  button[type="submit"] {
+    padding: 14px 20px !important;
+  }
+}
+
+/* Dark Mode Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--athena-bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--athena-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--athena-text-muted);
+}
+
+/* Selection */
+::selection {
+  background: rgba(201, 162, 39, 0.3);
+  color: var(--athena-text-primary);
+}
+
+/* Focus Visible */
+*:focus-visible {
+  outline: 2px solid var(--athena-gold-primary);
+  outline-offset: 2px;
+}
+
+/* Accessibility - Reduce Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* PatternFly Overrides */
+.pf-c-login__main {
+  background: transparent !important;
+}
+
+.pf-c-login {
+  background: var(--athena-bg-primary) !important;
+}
+
+.pf-c-login__container {
+  max-width: 440px !important;
+}
+
+.pf-c-form-control {
+  background: var(--athena-bg-tertiary) !important;
+  border-color: var(--athena-border) !important;
+  color: var(--athena-text-primary) !important;
+}
+
+.pf-c-form-control:focus {
+  border-color: var(--athena-gold-primary) !important;
+}
+
+/* Hide default Keycloak branding */
+.login-pf-page .login-pf-header {
+  display: none;
+}
+
+.kc-logo-container {
+  display: none;
+}
+
+/* Terms and conditions */
+#kc-terms-text {
+  background: var(--athena-bg-tertiary);
+  border-radius: var(--athena-radius-md);
+  padding: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  color: var(--athena-text-secondary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}

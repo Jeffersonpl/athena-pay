@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Athena",
+    "slug": "athena",
+    "scheme": "athenapay",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "jsEngine": "hermes",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FFF7EC"
+    },
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FFF7EC"
+      }
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "KEYCLOAK_URL": "http://localhost:8081",
+      "KEYCLOAK_REALM": "athena",
+      "KEYCLOAK_CLIENT_ID": "mobile-app",
+      "API_BASE": "http://localhost:8080",
+      "CARD_BASE": "http://localhost:9084",
+      "CONFIG_BASE": "http://localhost:9085"
+    }
+  }
+}

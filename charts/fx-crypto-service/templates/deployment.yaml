@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: fx-crypto-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: fx-crypto-service } }
+  template:
+    metadata: { labels: { app: fx-crypto-service } }
+    spec:
+      containers:
+        - name: fx-crypto-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]

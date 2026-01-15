@@ -1,0 +1,11 @@
+version: "3.9"
+services:
+  pix-service:
+    build:
+      context: ./services/pix-service
+      dockerfile: Dockerfile
+    ports: ["9083:8080"]
+    restart: unless-stopped
+  api-gateway:
+    environment:
+      - PIX_URL=http://pix-service:8080

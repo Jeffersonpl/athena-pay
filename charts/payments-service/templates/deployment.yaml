@@ -1,0 +1,13 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: payments-service }
+spec:
+  replicas: { { .Values.replicaCount } }
+  selector: { matchLabels: { app: payments-service } }
+  template:
+    metadata: { labels: { app: payments-service } }
+    spec:
+      containers:
+        - name: payments-service
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports: [ { containerPort: 8080 } ]
