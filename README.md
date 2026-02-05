@@ -61,31 +61,43 @@ O projeto nasceu da experiência prática de mais de 29 anos em desenvolvimento 
 │                        ATHENA PAY                                │
 ├─────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐             │
-│  │  Frontend   │  │  Mobile API │  │  WebPanel   │             │
-│  │   (Apps)    │  │             │  │     API     │             │
+│  │ Web Client  │  │ Admin Web   │  │   Mobile    │             │
+│  │   (React)   │  │   (React)   │  │(React Native)│            │
 │  └──────┬──────┘  └──────┬──────┘  └──────┬──────┘             │
-│         │                │                │                     │
 │         └────────────────┼────────────────┘                     │
 │                          ▼                                      │
 │              ┌───────────────────────┐                          │
 │              │     API Gateway       │                          │
-│              │   (Authentication)    │                          │
-│              └───────────┬───────────┘                          │
-│                          ▼                                      │
-│              ┌───────────────────────┐                          │
-│              │     Athena Core       │                          │
-│              │   (Business Logic)    │                          │
+│              │  (FastAPI + Keycloak) │                          │
 │              └───────────┬───────────┘                          │
 │                          │                                      │
-│    ┌─────────┬─────────┬─┴───────┬─────────┬─────────┐        │
-│    ▼         ▼         ▼         ▼         ▼         ▼        │
-│ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐ ┌──────┐        │
-│ │Account│ │Payment│ │ Card │ │ KYC  │ │Notif.│ │Audit │        │
-│ │Service│ │Service│ │Service│ │Service│ │Service│ │ Log  │        │
-│ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘ └──────┘        │
-│                                                                 │
+│  ┌───────────────────────┴───────────────────────────────────┐ │
+│  │              23 MICROSERVICES (FastAPI)                    │ │
+│  │                                                            │ │
+│  │  accounts  │  pix       │  cards     │  payments │  loans  │ │
+│  │  boleto    │  kyc       │  compliance│  lgpd     │  audit  │ │
+│  │  rewards   │  fx-crypto │  customer  │ accounting│ statement│ │
+│  │  wire      │  whatsapp  │  affiliates│ ai-service│  admin  │ │
+│  │  config    │  simulators│  api-gateway                     │ │
+│  └───────────────────────┬───────────────────────────────────┘ │
+│                          │                                      │
+│  ┌───────────────────────┴───────────────────────────────────┐ │
+│  │  PostgreSQL  │  Redis  │  Kafka  │  RabbitMQ              │ │
+│  └───────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+### Frontend (42+ páginas)
+
+| Área | Páginas |
+|------|---------|
+| Core | Dashboard, Login, Landing (estilo C6 Bank) |
+| Contas | Accounts, Statement, Transfer |
+| Pagamentos | PIX, TED/DOC, Boleto, Payments |
+| Cartões | Cards, Virtual Card |
+| Investimentos | Renda Fixa, Fundos, Ações, Tesouro |
+| Seguros | Vida, Celular, Viagem, Auto, Residencial |
+| Extras | Cofrinhos, Recarga, Split, Rewards, Cripto, Câmbio |
 
 ---
 
@@ -93,12 +105,13 @@ O projeto nasceu da experiência prática de mais de 29 anos em desenvolvimento 
 
 | Camada | Tecnologias |
 |--------|-------------|
-| **Backend** | Java 21, Spring Boot 3.x, Spring Security, Spring Cloud |
+| **Backend** | Python 3.11+, FastAPI, SQLAlchemy, Pydantic |
+| **Frontend** | React 18, TypeScript, Vite |
+| **Auth** | Keycloak 26.x, OAuth2/OIDC, JWT |
 | **Mensageria** | Apache Kafka, RabbitMQ |
-| **Database** | PostgreSQL, Redis, MongoDB |
-| **Infraestrutura** | Docker, Kubernetes, AWS/GCP |
-| **Monitoramento** | Prometheus, Grafana, ELK Stack |
-| **CI/CD** | GitHub Actions, ArgoCD |
+| **Database** | PostgreSQL 15, Redis 7 |
+| **Infraestrutura** | Docker, Kubernetes, Nginx, Traefik |
+| **CI/CD** | GitHub Actions |
 
 ---
 
@@ -106,42 +119,39 @@ O projeto nasceu da experiência prática de mais de 29 anos em desenvolvimento 
 
 ### Pré-requisitos
 
-- Java 21+
+- Python 3.11+
 - Docker & Docker Compose
 - PostgreSQL 15+
 - Redis 7+
-- Kafka (opcional para produção)
+- Node.js 18+ (para frontend)
 
 ### Quick Start
 
 ```bash
 # Clone o repositório
-git clone https://github.com/seu-usuario/athena-pay.git
+git clone https://github.com/Jeffersonpl/athena-pay.git
 cd athena-pay
 
 # Configure as variáveis de ambiente
 cp .env.example .env
 # Edite o .env com suas configurações
 
-# Suba os serviços com Docker Compose
-docker-compose up -d
+# Suba os serviços com Docker Compose (DEV)
+docker-compose -f docker-compose.dev.yml up -d --build
 
-# Acesse a documentação da API
-open http://localhost:8080/swagger-ui.html
+# Acesse:
+# Web:      http://localhost:5174
+# Admin:    http://localhost:5173
+# API:      http://localhost:8080
+# Keycloak: http://localhost:8081
 ```
 
-### Configuração Manual
+### Usuários de Teste (Keycloak)
 
-```bash
-# Build do projeto
-./mvnw clean install
-
-# Execute cada serviço
-java -jar athena-core/target/athena-core.jar
-java -jar account-service/target/account-service.jar
-java -jar payment-service/target/payment-service.jar
-# ... demais serviços
-```
+| Usuário | Senha | Roles |
+|---------|-------|-------|
+| admin1 | Passw0rd! | cto, user |
+| user1 | Passw0rd! | user |
 
 ---
 
