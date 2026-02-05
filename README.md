@@ -285,8 +285,8 @@ Este projeto adota um Código de Conduta. Ao participar, você concorda em respe
 ## 📞 Contato
 
 - **Autor**: Jefferson Pereira
-- **LinkedIn**: [seu-linkedin]
-- **Email**: [seu-email]
+- **LinkedIn**: https://www.linkedin.com/in/jefferson-leite-127a194b/
+- **Email**: jefferson@jeffersonpl.dev
 
 ---
 
